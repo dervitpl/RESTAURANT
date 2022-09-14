@@ -3,29 +3,39 @@ import http from 'http';
 import mongoose from 'mongoose';
 import { config } from './config/config';
 import Logging from './library/Logging';
-
+import restauracjaRoutes from './routes/Restauracja';
+import pracownikRoutes from './routes/Pracownik';
+import stolikRoutes from './routes/Stolik';
+import rezerwacjaRoutes from './routes/Rezerwacja';
+import produktRoutes from './routes/Produkt';
+import danieRoutes from './routes/Danie';
+import zamowienieRoutes from './routes/Zamowienie';
 
 const router = express();
 
-/** connection do mongodb */
+/**Connect to Mongo */
+
 mongoose
     .connect(config.mongo.url, { retryWrites: true, w: 'majority' })
     .then(() => {
-        Logging.info('Mongo connected successfully.');
+        Logging.info('Connected to mongoDB.');
         StartServer();
     })
-    .catch((error) => Logging.error(error));
+    .catch((error) => {
+        Logging.error('Unable to connect: ');
+        Logging.error(error);
+    });
 
-/** start as mongo connects */
+/**if mongo connect start server */
 const StartServer = () => {
     router.use((req, res, next) => {
-        Logging.info(`Incomming - METHOD: [${req.method}] - URL: [${req.url}] - IP: [${req.socket.remoteAddress}]`);
+        Logging.info(`Incomming -> Method: [${req.method}] - Url: [${req.url}] - IP: [${req.socket.remoteAddress}]`);
+
         res.on('finish', () => {
-            Logging.info(`Result - METHOD: [${req.method}] - URL: [${req.url}] - IP: [${req.socket.remoteAddress}] - STATUS: [${res.statusCode}]`);
+            Logging.info(`Incomming -> Method: [${req.method}] - Url: [${req.url}] - IP:[${req.socket.remoteAddress}] - Status: [${res.statusCode}]`);
         });
         next();
     });
-
     router.use(express.urlencoded({ extended: true }));
     router.use(express.json());
 
@@ -41,17 +51,27 @@ const StartServer = () => {
         next();
     });
 
-    /** ping */
-    router.get('/ping', (req, res, next) => res.status(200).json({ hello: 'world' }));
+    /** ROUTES */
 
-    /** error handling */
+    router.use('/stoliki', stolikRoutes);
+    router.use('/restauracje', restauracjaRoutes);
+    router.use('/pracownicy', pracownikRoutes);
+    router.use('/rezerwacje', rezerwacjaRoutes);
+    router.use('/produkty', produktRoutes);
+    router.use('/dania', danieRoutes);
+    router.use('/zamowienia', zamowienieRoutes);
+
+    /**PING */
+
+    router.get('/ping', (req, res, next) => res.status(200).json({ message: 'pong' }));
+
+    /**ERROR HANDLING */
+
     router.use((req, res, next) => {
         const error = new Error('not found');
         Logging.error(error);
 
-        return res.status(404).json({ 
-            message: error.message 
-        });
+        return res.status(404).json({ message: error.message });
     });
 
     http.createServer(router).listen(config.server.port, () => Logging.info(`Server is running on port ${config.server.port}`));
